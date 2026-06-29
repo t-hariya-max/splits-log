@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="割り勘ログ">
-<title>割り勘ログ</title>
+<meta name="apple-mobile-web-app-title" content="支払いログ">
+<title>支払いログ</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, sans-serif; background: #f2f2f7; min-height: 100vh; }
@@ -15,6 +15,7 @@
   .card { background: #fff; border-radius: 12px; margin: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
   label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; margin-top: 14px; }
   label:first-of-type { margin-top: 0; }
+  input[type="date"] { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #f9f9f9; appearance: none; -webkit-appearance: none; }
   input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #f9f9f9; }
   input:focus, select:focus { outline: none; border-color: #007aff; background: #fff; }
   .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 18px; }
@@ -38,7 +39,7 @@
 <body>
 
 <header>
-  <h1>割り勘ログ <span id="count-badge" class="badge" style="display:none"></span></h1>
+  <h1>支払いログ <span id="count-badge" class="badge" style="display:none"></span></h1>
 </header>
 
 <div class="card">
