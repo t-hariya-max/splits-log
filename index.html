@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="割り勘ログ">
+<title>割り勘ログ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #f2f2f7; min-height: 100vh; }
+  header { background: #fff; padding: 16px 20px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  .card { background: #fff; border-radius: 12px; margin: 16px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; margin-top: 14px; }
+  label:first-of-type { margin-top: 0; }
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background: #f9f9f9; }
+  input:focus, select:focus { outline: none; border-color: #007aff; background: #fff; }
+  .btn { display: block; width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 18px; }
+  .btn-primary { background: #007aff; color: #fff; }
+  .btn-export { background: #34c759; color: #fff; margin: 0 16px 8px; width: calc(100% - 32px); }
+  .btn-clear { background: #ff3b30; color: #fff; margin: 0 16px 16px; width: calc(100% - 32px); }
+  .section-title { font-size: 13px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 20px 8px; }
+  .entry { background: #fff; border-radius: 10px; margin: 0 16px 8px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: flex-start; }
+  .entry-left { flex: 1; }
+  .entry-date { font-size: 12px; color: #999; }
+  .entry-store { font-size: 15px; font-weight: 600; margin: 2px 0; }
+  .entry-method { font-size: 12px; color: #666; }
+  .entry-right { text-align: right; }
+  .entry-actual { font-size: 17px; font-weight: 700; color: #007aff; }
+  .entry-card { font-size: 12px; color: #999; }
+  .entry-delete { background: none; border: none; color: #ff3b30; font-size: 18px; padding: 0 0 0 12px; cursor: pointer; }
+  .empty { text-align: center; color: #aaa; padding: 32px 16px; }
+  .badge { display: inline-block; background: #ff9500; color: #fff; border-radius: 4px; font-size: 11px; padding: 1px 5px; margin-left: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>割り勘ログ <span id="count-badge" class="badge" style="display:none"></span></h1>
+</header>
+
+<div class="card">
+  <label>日付</label>
+  <input type="date" id="date">
+
+  <label>店名</label>
+  <input type="text" id="store" placeholder="例：リラックス">
+
+  <label>自分の実費（円）</label>
+  <input type="number" id="actual" placeholder="例：10000" inputmode="numeric">
+
+  <label>決済手段</label>
+  <select id="method">
+    <option>マリオットアメックス</option>
+    <option>アメックスゴールド</option>
+    <option>楽天カード</option>
+    <option>ヒルズカード</option>
+    <option>三井住友法人カード</option>
+    <option>au PAY</option>
+    <option>PayPay</option>
+    <option>現金</option>
+  </select>
+
+  <label>キャッシュレス決済金額（円）※現金の場合は0</label>
+  <input type="number" id="card-amount" placeholder="例：30000" inputmode="numeric">
+
+  <button class="btn btn-primary" onclick="addEntry()">追加</button>
+</div>
+
+<button class="btn btn-export" onclick="exportCSV()">CSVエクスポート</button>
+<button class="btn btn-clear" onclick="clearAll()">全件クリア</button>
+
+<div class="section-title">ログ一覧</div>
+<div id="list"></div>
+
+<script>
+const STORE_KEY = 'splits_log';
+
+function today() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+document.getElementById('date').value = today();
+
+function load() {
+  return JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+}
+
+function save(data) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(data));
+}
+
+function render() {
+  const data = load();
+  const list = document.getElementById('list');
+  const badge = document.getElementById('count-badge');
+
+  if (data.length === 0) {
+    list.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.textContent = data.length;
+  badge.style.display = 'inline-block';
+
+  list.innerHTML = [...data].reverse().map((e, i) => {
+    const realIdx = data.length - 1 - i;
+    const diff = e.cardAmount > 0 ? `（カード${e.cardAmount.toLocaleString()}円から補正）` : '（現金）';
+    return `
+      <div class="entry">
+        <div class="entry-left">
+          <div class="entry-date">${e.date}</div>
+          <div class="entry-store">${e.store}</div>
+          <div class="entry-method">${e.method}</div>
+          <div class="entry-card">${diff}</div>
+        </div>
+        <div class="entry-right">
+          <div class="entry-actual">¥${e.actual.toLocaleString()}</div>
+          <button class="entry-delete" onclick="deleteEntry(${realIdx})">×</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addEntry() {
+  const date = document.getElementById('date').value;
+  const store = document.getElementById('store').value.trim();
+  const actual = parseInt(document.getElementById('actual').value);
+  const method = document.getElementById('method').value;
+  const cardAmount = parseInt(document.getElementById('card-amount').value) || 0;
+
+  if (!date || !store || isNaN(actual)) {
+    alert('日付・店名・実費を入力してください');
+    return;
+  }
+
+  const data = load();
+  data.push({ date, store, actual, method, cardAmount });
+  save(data);
+
+  document.getElementById('store').value = '';
+  document.getElementById('actual').value = '';
+  document.getElementById('card-amount').value = '';
+  document.getElementById('date').value = today();
+
+  render();
+}
+
+function deleteEntry(idx) {
+  if (!confirm('削除しますか？')) return;
+  const data = load();
+  data.splice(idx, 1);
+  save(data);
+  render();
+}
+
+function exportCSV() {
+  const data = load();
+  if (data.length === 0) { alert('データがありません'); return; }
+  const header = '日付,店名,実費,決済手段,カード金額';
+  const rows = data.map(e => `${e.date},${e.store},${e.actual},${e.method},${e.cardAmount}`);
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `splits_${today()}.csv`;
+  a.click();
+}
+
+function clearAll() {
+  if (!confirm('全件削除しますか？')) return;
+  save([]);
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
