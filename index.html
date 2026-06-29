@@ -67,6 +67,25 @@
   <label>キャッシュレス決済金額（円）※現金の場合は0</label>
   <input type="number" id="card-amount" placeholder="例：30000" inputmode="numeric">
 
+  <label>税率</label>
+  <select id="taxrate">
+    <option value="10">10%（標準）</option>
+    <option value="8">8%（軽減・飲食料品）</option>
+    <option value="mix">混在（8%+10%）</option>
+  </select>
+
+  <label>インボイス</label>
+  <select id="invoice" onchange="toggleTno()">
+    <option value="適格">適格（領収証にT番号あり）</option>
+    <option value="非適格">非適格（T番号なし）</option>
+    <option value="不明">不明</option>
+  </select>
+
+  <div id="tno-wrap">
+    <label>登録番号 T（任意・新規店のみ）</label>
+    <input type="text" id="tno" placeholder="例：T1234567890123" inputmode="numeric">
+  </div>
+
   <button class="btn btn-primary" onclick="addEntry()">追加</button>
 </div>
 
@@ -110,14 +129,17 @@ function render() {
 
   list.innerHTML = [...data].reverse().map((e, i) => {
     const realIdx = data.length - 1 - i;
-    const diff = e.cardAmount > 0 ? `（カード${e.cardAmount.toLocaleString()}円から補正）` : '（現金）';
+    const diff = e.cardAmount > 0 ? `カード${e.cardAmount.toLocaleString()}円から補正` : '現金';
+    const taxLabel = e.taxrate === 'mix' ? '8%+10%' : `${e.taxrate || 10}%`;
+    const inv = e.invoice || '不明';
+    const tnoLabel = e.tno ? ` ${e.tno}` : '';
     return `
       <div class="entry">
         <div class="entry-left">
           <div class="entry-date">${e.date}</div>
           <div class="entry-store">${e.store}</div>
           <div class="entry-method">${e.method}</div>
-          <div class="entry-card">${diff}</div>
+          <div class="entry-card">${diff} ／ ${taxLabel} ／ ${inv}${tnoLabel}</div>
         </div>
         <div class="entry-right">
           <div class="entry-actual">¥${e.actual.toLocaleString()}</div>
@@ -133,6 +155,9 @@ function addEntry() {
   const actual = parseInt(document.getElementById('actual').value);
   const method = document.getElementById('method').value;
   const cardAmount = parseInt(document.getElementById('card-amount').value) || 0;
+  const taxrate = document.getElementById('taxrate').value;
+  const invoice = document.getElementById('invoice').value;
+  const tno = document.getElementById('tno').value.trim();
 
   if (!date || !store || isNaN(actual)) {
     alert('日付・店名・実費を入力してください');
@@ -140,12 +165,13 @@ function addEntry() {
   }
 
   const data = load();
-  data.push({ date, store, actual, method, cardAmount });
+  data.push({ date, store, actual, method, cardAmount, taxrate, invoice, tno });
   save(data);
 
   document.getElementById('store').value = '';
   document.getElementById('actual').value = '';
   document.getElementById('card-amount').value = '';
+  document.getElementById('tno').value = '';
   document.getElementById('date').value = today();
 
   render();
@@ -162,8 +188,8 @@ function deleteEntry(idx) {
 function exportCSV() {
   const data = load();
   if (data.length === 0) { alert('データがありません'); return; }
-  const header = '日付,店名,実費,決済手段,カード金額';
-  const rows = data.map(e => `${e.date},${e.store},${e.actual},${e.method},${e.cardAmount}`);
+  const header = '日付,店名,実費,決済手段,カード金額,税率,インボイス,登録番号';
+  const rows = data.map(e => `${e.date},${e.store},${e.actual},${e.method},${e.cardAmount},${e.taxrate || 10},${e.invoice || '不明'},${e.tno || ''}`);
   const csv = [header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -173,12 +199,18 @@ function exportCSV() {
   a.click();
 }
 
+function toggleTno() {
+  const inv = document.getElementById('invoice').value;
+  document.getElementById('tno-wrap').style.display = inv === '適格' ? 'block' : 'none';
+}
+
 function clearAll() {
   if (!confirm('全件削除しますか？')) return;
   save([]);
   render();
 }
 
+toggleTno();
 render();
 </script>
 </body>
